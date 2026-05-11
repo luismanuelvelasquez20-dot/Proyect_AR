@@ -74,44 +74,28 @@
     </div>
 
     <script>
-    // 1. Obtener el ID del usuario (asegúrate de que userId esté disponible)
-    const urlParams = new URLSearchParams(window.location.search);
-    const userId = urlParams.get('id');
-
-    function cargarRanking() {
-    // 1. Consultamos por 'fecha_fin' (orden cronológico)
-    // limitToFirst(15) trae a los 15 que llegaron primero
-    db.ref('usuarios')
-      .orderByChild('fecha_fin')
-      .limitToFirst(15) 
-      .on('value', snap => {
+        function cargarRanking() {
+    // Cambiamos 'orderByChild' por 'orderByKey' para usar el orden cronológico de Firebase
+    // .limitToFirst(10) traerá a los primeros 10 que se registraron
+    db.ref('usuarios').orderByKey().limitToFirst(10).on('value', snap => {
         const body = document.getElementById('ranking-body');
         body.innerHTML = "";
         
         let usuarios = [];
         snap.forEach(child => {
-            const data = child.val();
-            // Solo incluimos a los que ya tienen fecha de fin registrada
-            if (data.fecha_fin) {
-                usuarios.push({ id: child.key, ...data });
-            }
+            usuarios.push({ id: child.key, ...child.val() });
         });
 
-        // No hace falta .reverse() porque queremos que el menor tiempo (el primero) esté arriba
+        // NOTA: No hace falta el .reverse() porque 'limitToFirst' 
+        // ya te los da en el orden en que fueron creados (del más antiguo al más reciente)
+
         usuarios.forEach((user, i) => {
             const row = document.createElement('tr');
-            
-            // 2. RESALTADO: Si el ID coincide con el usuario actual
-            if (user.id === userId) {
-                row.className = "highlight";
-            }
+            if (user.id === userId) row.className = "highlight";
             
             row.innerHTML = `
-                <td>${i + 1}°</td>
-                <td>
-                    <span class="emoji-mini">${user.emoji || '🧙‍♂️'}</span> 
-                    ${user.nombre} ${user.id === userId ? "<strong>(TÚ)</strong>" : ""}
-                </td>
+                <td>${i + 1}</td>
+                <td><span class="emoji-mini">${user.emoji || '🧙‍♂️'}</span> ${user.nombre}</td>
                 <td>${user.nota_final || 0} / 10</td>
                 <td style="color: #ffd700;">${user.monedas || 0} 🪙</td>
             `;
@@ -119,24 +103,21 @@
         });
     });
 }
-
-    function finalizarYBorrar() {
-        // Usamos el alert "mágico" que definiste en tu config si quieres, o el confirm normal
-        if (confirm("¿Estás seguro de que deseas disolver tu vínculo? Tu progreso se borrará para siempre.")) {
-            if (userId && userId !== 'invitado') {
-                db.ref('usuarios/' + userId).remove().then(() => {
+        function finalizarYBorrar() {
+            if (confirm("¿Estás seguro de que deseas borrar tu rastro en el bosque? Tus monedas y rango se perderán.")) {
+                if (userId) {
+                    db.ref('usuarios/' + userId).remove().then(() => {
+                        window.location.href = 'index.html';
+                    });
+                } else {
                     window.location.href = 'index.html';
-                });
-            } else {
-                window.location.href = 'index.html';
+                }
             }
         }
-    }
 
-    window.onload = () => {
-        // Pequeña espera para asegurar que Firebase cargó
-        setTimeout(cargarRanking, 500);
-    };
-</script>
+        window.onload = () => {
+            setTimeout(cargarRanking, 1000);
+        };
+    </script>
 </body>
 </html>
